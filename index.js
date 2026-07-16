@@ -1,8 +1,8 @@
-require("dotenv").config();
-const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
-const axios = require("axios");
-const cron = require("node-cron");
-const http = require("http");
+require("dotenv").config()
+const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js")
+const axios = require("axios")
+const cron = require("node-cron")
+const http = require("http")
 
 const client = new Client({
   intents: [
@@ -10,30 +10,27 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
-});
+})
 
-const TOKEN = process.env.DISCORD_TOKEN;
-const WEBHOOK_URLS = [
-  process.env.FREE_WEBHOOK,
-  process.env.PAID_WEBHOOK,
-  process.env.WEB_WEBHOOK
-].filter(Boolean);
+const TOKEN = process.env.DISCORD_TOKEN
+const FREE_WEBHOOK = process.env.FREE_WEBHOOK
+const PAID_WEBHOOK = process.env.PAID_WEBHOOK
+const WEB_WEBHOOK = process.env.WEB_WEBHOOK
 
-let notifiedItems = new Set();
+let notifiedItems = new Set()
 
 http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("OK");
-}).listen(process.env.PORT || 10000);
+  res.writeHead(200, { "Content-Type": "text/plain" })
+  res.end("OK")
+}).listen(process.env.PORT || 10000)
 
-async function sendWebhook(embed) {
-  await Promise.all(
-    WEBHOOK_URLS.map(url =>
-      axios.post(url, { embeds: [embed] }).catch(e =>
-        console.error(`Webhook failed (${url.slice(0, 50)}...):`, e.message)
-      )
-    )
-  );
+async function sendWebhookTo(url, embed) {
+  if (!url) return
+  try {
+    await axios.post(url, { embeds: [embed] })
+  } catch (e) {
+    console.error(`Webhook failed (${url.slice(0, 50)}...):`, e.message)
+  }
 }
 
 async function getItemImage(itemId) {
@@ -41,10 +38,10 @@ async function getItemImage(itemId) {
     const res = await axios.get(
       `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&returnPolicy=PlaceHolder&size=420x420&format=Png&isCircular=false`,
       { headers: { Accept: "application/json" } }
-    );
-    return res.data?.data?.[0]?.imageUrl ?? null;
+    )
+    return res.data?.data?.[0]?.imageUrl ?? null
   } catch {
-    return null;
+    return null
   }
 }
 
@@ -56,32 +53,32 @@ async function checkFreeUGC() {
       "https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3"
-    ];
+    ]
 
     const results = await Promise.all(
       urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null))
-    );
+    )
 
-    const allItems = results.flatMap(r => r?.data?.data ?? []);
-    const seen = new Set();
+    const allItems = results.flatMap(r => r?.data?.data ?? [])
+    const seen = new Set()
     const unique = allItems.filter(i => {
-      if (seen.has(i.id)) return false;
-      seen.add(i.id);
-      return true;
-    });
+      if (seen.has(i.id)) return false
+      seen.add(i.id)
+      return true
+    })
 
-    let newCount = 0;
+    let newCount = 0
 
     for (const item of unique) {
-      const itemId = item.id?.toString();
-      const isFree = item.price === 0 || item.price === null;
-      const isUGC = item.creatorType === "User" || item.creatorType === "Group";
-      if (!itemId || !isFree || !isUGC || notifiedItems.has(itemId)) continue;
+      const itemId = item.id?.toString()
+      const isFree = item.price === 0 || item.price === null
+      const isUGC = item.creatorType === "User" || item.creatorType === "Group"
+      if (!itemId || !isFree || !isUGC || notifiedItems.has(itemId)) continue
 
-      notifiedItems.add(itemId);
-      newCount++;
+      notifiedItems.add(itemId)
+      newCount++
 
-      const imageUrl = await getItemImage(itemId);
+      const imageUrl = await getItemImage(itemId)
 
       const embed = {
         title: `>: ${item.name}`,
@@ -95,24 +92,24 @@ async function checkFreeUGC() {
         color: 0x00ff88,
         footer: { text: "Free UGC Alert" },
         timestamp: new Date().toISOString()
-      };
+      }
 
-      if (imageUrl) embed.thumbnail = { url: imageUrl };
+      if (imageUrl) embed.thumbnail = { url: imageUrl }
 
-      await sendWebhook(embed);
-      console.log(`Notified: ${item.name} (${itemId})`);
+      await sendWebhookTo(FREE_WEBHOOK, embed)
+      console.log(`Notified FREE: ${item.name} (${itemId})`)
     }
 
-    console.log(`Check complete: scanned ${unique.length} items, ${newCount} new, ${notifiedItems.size} total tracked.`);
+    console.log(`Check complete: scanned ${unique.length} items, ${newCount} new, ${notifiedItems.size} total tracked.`)
   } catch (e) {
-    console.error("Check error:", e.message);
+    console.error("Check error:", e.message)
   }
 }
 
-cron.schedule("* * * * *", checkFreeUGC);
+cron.schedule("* * * * *", checkFreeUGC)
 
 client.on("messageCreate", async msg => {
-  if (msg.author.bot) return;
+  if (msg.author.bot) return
 
   if (msg.content === "!help") {
     const embed = new EmbedBuilder()
@@ -123,31 +120,31 @@ client.on("messageCreate", async msg => {
         { name: "!testugc", value: "Test the UGC notification" },
         { name: "!help", value: "Show this menu" }
       )
-      .setColor(0x2ecc71);
+      .setColor(0x2ecc71)
 
-    msg.reply({ embeds: [embed] });
+    msg.reply({ embeds: [embed] })
   }
 
   if (msg.content === "!testugc") {
-    await sendWebhook({
+    await sendWebhookTo(WEB_WEBHOOK, {
       title: "🧪 Test UGC Alert",
       description: "This is a test of the free UGC notification system.",
       color: 0x00ff88,
       footer: { text: "Free UGC Alert" },
       timestamp: new Date().toISOString()
-    });
-    msg.reply("✅ Test sent!");
+    })
+    msg.reply("✅ Test sent!")
   }
 
   if (msg.content.startsWith("!value ")) {
-    const query = msg.content.slice(7).toLowerCase();
+    const query = msg.content.slice(7).toLowerCase()
     try {
-      const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails");
-      const items = res.data.items;
-      const match = Object.entries(items).find(([id, data]) => data[0].toLowerCase().includes(query));
-      if (!match) return msg.reply("❌ Item not found!");
-      const [id, data] = match;
-      const imageUrl = await getItemImage(id);
+      const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
+      const items = res.data.items
+      const match = Object.entries(items).find(([id, data]) => data[0].toLowerCase().includes(query))
+      if (!match) return msg.reply("❌ Item not found!")
+      const [id, data] = match
+      const imageUrl = await getItemImage(id)
       const embed = new EmbedBuilder()
         .setTitle(`📦 ${data[0]}`)
         .setURL(`https://www.rolimons.com/item/${id}`)
@@ -157,20 +154,20 @@ client.on("messageCreate", async msg => {
           { name: "📊 Trend", value: ["Unassigned", "Lowering", "Unstable", "Stable", "Rising", "Projected"][data[6]] ?? "Unknown", inline: true }
         )
         .setColor(0x00b4d8)
-        .setFooter({ text: "Powered by Rolimons" });
+        .setFooter({ text: "Powered by Rolimons" })
 
-      if (imageUrl) embed.setThumbnail(imageUrl);
-      msg.reply({ embeds: [embed] });
+      if (imageUrl) embed.setThumbnail(imageUrl)
+      msg.reply({ embeds: [embed] })
     } catch {
-      msg.reply("⚠️ Failed to fetch data.");
+      msg.reply("⚠️ Failed to fetch data.")
     }
   }
 
   if (msg.content.startsWith("!player ")) {
-    const userId = msg.content.slice(8).trim();
+    const userId = msg.content.slice(8).trim()
     try {
-      const res = await axios.get(`https://www.rolimons.com/playerapi/player/${userId}`);
-      const data = res.data;
+      const res = await axios.get(`https://www.rolimons.com/playerapi/player/${userId}`)
+      const data = res.data
       const embed = new EmbedBuilder()
         .setTitle(`👤 Player: ${data.player_name}`)
         .addFields(
@@ -178,19 +175,19 @@ client.on("messageCreate", async msg => {
           { name: "🎒 Items", value: `${data.inventory_count ?? "N/A"}`, inline: true }
         )
         .setColor(0x9b59b6)
-        .setURL(`https://www.rolimons.com/player/${userId}`);
+        .setURL(`https://www.rolimons.com/player/${userId}`)
 
-      msg.reply({ embeds: [embed] });
+      msg.reply({ embeds: [embed] })
     } catch {
-      msg.reply("⚠️ Player not found.");
+      msg.reply("⚠️ Player not found.")
     }
   }
-});
+})
 
 client.once("ready", () => {
-  console.log(`✅ Bot online as ${client.user.tag}`);
-  console.log(`🚀 Deployed at: ${new Date().toISOString()}`);
-  checkFreeUGC();
-});
+  console.log(`✅ Bot online as ${client.user.tag}`)
+  console.log(`🚀 Deployed at: ${new Date().toISOString()}`)
+  checkFreeUGC()
+})
 
-client.login(TOKEN);
+client.login(TOKEN)
