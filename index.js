@@ -63,6 +63,7 @@ async function checkFreeUGC() {
       return true;
     });
 
+    let newCount = 0;
     for (const item of unique) {
       const itemId = item.id?.toString();
       const isFree = item.price === 0 || item.price === null;
@@ -70,6 +71,7 @@ async function checkFreeUGC() {
       if (!itemId || !isFree || !isUGC || notifiedItems.has(itemId)) continue;
 
       notifiedItems.add(itemId);
+      newCount++;
 
       const imageUrl = await getItemImage(itemId);
 
@@ -92,6 +94,7 @@ async function checkFreeUGC() {
       await sendWebhook(embed);
       console.log(`Notified: ${item.name} (${itemId})`);
     }
+    console.log(`Check complete: scanned ${unique.length} items, ${newCount} new, ${notifiedItems.size} total tracked.`);
   } catch (e) {
     console.error("Check error:", e.message);
   }
