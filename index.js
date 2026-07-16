@@ -173,6 +173,7 @@ client.on("messageCreate", async (msg) => {
 
 client.once("ready", () => {
   console.log(`✅ Bot online as ${client.user.tag}`);
+  console.log(`🚀 Deployed at: ${new Date().toISOString()}`);
   checkFreeUGC();
 });
 
