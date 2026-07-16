@@ -102,7 +102,7 @@ async function checkFreeUGC() {
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          { name: "🎮 Game / Item", value: `[${item.name}](${itemUrl})` },
+          { name: "🎮 Game", value: `[${item.name}](${itemUrl})` },
           { name: "Rolimons", value: `<${rolimonsUrl}>` }
         ],
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
@@ -117,7 +117,7 @@ async function checkFreeUGC() {
           { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          { name: "🎮 Game / Item", value: `[${item.name}](${itemUrl})` },
+          { name: "🎮 Game", value: `[${item.name}](${itemUrl})` },
           { name: "Rolimons", value: `<${rolimonsUrl}>` }
         ],
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
@@ -179,7 +179,7 @@ client.on("messageCreate", async msg => {
       footer: { text: "" },
       timestamp: new Date().toISOString(),
       fields: [
-        { name: "🎮 Game / Item", value: `[Test Item](${itemUrl})` },
+        { name: "🎮 Game", value: `[Test Item](${itemUrl})` },
         { name: "Rolimons", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
@@ -191,7 +191,7 @@ client.on("messageCreate", async msg => {
       footer: { text: "Web UGC Alert" },
       timestamp: new Date().toISOString(),
       fields: [
-        { name: "🎮 Game / Item", value: `[Test Item](${itemUrl})` },
+        { name: "🎮 Game", value: `[Test Item](${itemUrl})` },
         { name: "Rolimons", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
