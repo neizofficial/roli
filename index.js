@@ -12,11 +12,21 @@ const client = new Client({
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;
-const WEBHOOK_URL = process.env.WEBHOOK_URL;
+// Comma-separated list of webhook URLs, e.g. "https://discord.com/api/webhooks/AAA,https://discord.com/api/webhooks/BBB"
+const WEBHOOK_URLS = (process.env.WEBHOOK_URLS || process.env.WEBHOOK_URL || "")
+  .split(",")
+  .map(u => u.trim())
+  .filter(Boolean);
 let notifiedItems = new Set();
 
 async function sendWebhook(embed) {
-  await axios.post(WEBHOOK_URL, { embeds: [embed] });
+  await Promise.all(
+    WEBHOOK_URLS.map(url =>
+      axios.post(url, { embeds: [embed] }).catch(e =>
+        console.error(`Webhook failed (${url.slice(0, 50)}...):`, e.message)
+      )
+    )
+  );
 }
 
 async function getItemImage(itemId) {
