@@ -19,6 +19,8 @@ const WEB_WEBHOOK = process.env.WEB_WEBHOOK
 const FREE_ROLE_ID = "1509514820913729557"
 const PAID_ROLE_ID = "1509533927134593105"
 
+const ROSE_ICON_URL = "https://static.wikia.nocookie.net/roblox/images/8/81/Rose.png"
+
 let notifiedItems = new Set()
 
 http.createServer((req, res) => {
@@ -91,11 +93,11 @@ async function checkFreeUGC() {
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           {
             name: "",
-            value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+            value: "[https://www.roblox.com/games/5233461676/Try-on-Catalog-Items](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
           },
           { name: "", value: rolimonsUrl }
         ],
-        color: 0x3498db,
+        color: 0xED4245,
         footer: { text: "" },
         timestamp: new Date().toISOString()
       }
@@ -112,15 +114,15 @@ async function checkFreeUGC() {
           },
           { name: "Click Here", value: rolimonsUrl }
         ],
-        color: 0x57f287,
+        color: 0xED4245,
         footer: { text: "Web Ugc" },
         timestamp: new Date().toISOString()
       }
 
-      if (imageUrl) {
-        freeEmbed.thumbnail = { url: imageUrl }
-        webEmbed.thumbnail = { url: imageUrl }
-      }
+      const thumbUrl = imageUrl || ROSE_ICON_URL
+
+      freeEmbed.thumbnail = { url: thumbUrl }
+      webEmbed.thumbnail = { url: thumbUrl }
 
       if (isFree) {
         await sendWebhookTo(FREE_WEBHOOK, {
@@ -161,7 +163,7 @@ client.on("messageCreate", async msg => {
         { name: "!testugc", value: "Test the UGC notification" },
         { name: "!help", value: "Show this menu" }
       )
-      .setColor(0x2ecc71)
+      .setColor(0xED4245)
 
     msg.reply({ embeds: [embed] })
   }
@@ -170,33 +172,35 @@ client.on("messageCreate", async msg => {
     const rolimonsUrl = "https://www.rolimons.com/item/0"
 
     const freeEmbed = {
-      title: "🧪 Test FREE UGC Alert",
+      title: "🧪 Test UGC Alert",
       description: "Test embed for FREE channel.",
-      color: 0x3498db,
-      footer: { text: "Free UGC Alert" },
+      color: 0xED4245,
+      footer: { text: "" },
       timestamp: new Date().toISOString(),
       fields: [
         {
           name: "",
-          value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          value: "[https://www.roblox.com/games/5233461676/Try-on-Catalog-Items](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
         { name: "", value: rolimonsUrl }
-      ]
+      ],
+      thumbnail: { url: ROSE_ICON_URL }
     }
 
     const webEmbed = {
       title: "🧪 Test WEB UGC Alert",
       description: "Test embed for WEB channel.",
-      color: 0x57f287,
+      color: 0xED4245,
       footer: { text: "Web UGC Alert" },
       timestamp: new Date().toISOString(),
       fields: [
         {
           name: "",
-          value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          value: "[https://www.roblox.com/games/5233461676/Try-on-Catalog-Items](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
         { name: "", value: rolimonsUrl }
-      ]
+      ],
+      thumbnail: { url: ROSE_ICON_URL }
     }
 
     await sendWebhookTo(FREE_WEBHOOK, {
@@ -229,10 +233,11 @@ client.on("messageCreate", async msg => {
           { name: "📈 Demand", value: ["None", "Terrible", "Low", "Normal", "High", "Amazing"][data[5] + 1] ?? "Unknown", inline: true },
           { name: "📊 Trend", value: ["None", "Lowering", "Unstable", "Stable", "Raising", "Fluctuating"][data[6] + 1] ?? "Unknown", inline: true }
         )
-        .setColor(0x00b4d8)
-        .setFooter({ text: "" })
+        .setColor(0xED4245)
 
       if (imageUrl) embed.setThumbnail(imageUrl)
+      else embed.setThumbnail(ROSE_ICON_URL)
+
       msg.reply({ embeds: [embed] })
     } catch {
       msg.reply("⚠️ Failed to fetch data.")
@@ -250,8 +255,9 @@ client.on("messageCreate", async msg => {
           { name: "💎 Value", value: `${data.player_value?.toLocaleString() ?? "N/A"} RAP`, inline: true },
           { name: "🎒 Items", value: `${data.inventory_count ?? "N/A"}`, inline: true }
         )
-        .setColor(0x9b59b6)
+        .setColor(0xED4245)
         .setURL(`https://www.rolimons.com/player/${userId}`)
+        .setThumbnail(ROSE_ICON_URL)
 
       msg.reply({ embeds: [embed] })
     } catch {
