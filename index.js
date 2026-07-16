@@ -84,56 +84,37 @@ async function checkFreeUGC() {
 
       const imageUrl = await getItemImage(itemId)
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
-      const gameName = item.name
-      const gameUrl = itemUrl
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
 
       const freeEmbed = {
-        title: `${item.name}`,
-        description: `[${gameName}](${gameUrl})`,
+        title: item.name,
+        color: 0xED4245,
         fields: [
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          {
-            name: "Game / Item",
-            value: `[${gameName}](${gameUrl})\n<${gameUrl}>`
-          },
-          {
-            name: "Rolimons",
-            value: `<${rolimonsUrl}>`
-          }
+          { name: "🎮 Game / Item", value: `[${item.name}](${itemUrl})\n<${itemUrl}>` },
+          { name: "Rolimons", value: `<${rolimonsUrl}>` }
         ],
-        color: 0xED4245,
+        thumbnail: { url: imageUrl || ROSE_ICON_URL },
         footer: { text: "" },
         timestamp: new Date().toISOString()
       }
 
       const webEmbed = {
-        title: `${item.name}`,
-        description: `[${gameName}](${gameUrl})`,
+        title: item.name,
+        color: 0xED4245,
         fields: [
           { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          {
-            name: "Game / Item",
-            value: `[${gameName}](${gameUrl})\n<${gameUrl}>`
-          },
-          {
-            name: "Rolimons",
-            value: `<${rolimonsUrl}>`
-          }
+          { name: "🎮 Game / Item", value: `[${item.name}](${itemUrl})\n<${itemUrl}>` },
+          { name: "Rolimons", value: `<${rolimonsUrl}>` }
         ],
-        color: 0xED4245,
+        thumbnail: { url: imageUrl || ROSE_ICON_URL },
         footer: { text: "Web Ugc" },
         timestamp: new Date().toISOString()
       }
-
-      const thumbUrl = imageUrl || ROSE_ICON_URL
-
-      freeEmbed.thumbnail = { url: thumbUrl }
-      webEmbed.thumbnail = { url: thumbUrl }
 
       if (isFree) {
         await sendWebhookTo(FREE_WEBHOOK, {
@@ -181,44 +162,28 @@ client.on("messageCreate", async msg => {
 
   if (msg.content === "!testugc") {
     const itemUrl = "https://www.roblox.com/catalog/0"
-    const gameName = "Test Item"
-    const gameUrl = itemUrl
     const rolimonsUrl = "https://www.rolimons.com/item/0"
 
     const freeEmbed = {
       title: "🧪 Test UGC Alert",
-      description: `[${gameName}](${gameUrl})`,
       color: 0xED4245,
       footer: { text: "" },
       timestamp: new Date().toISOString(),
       fields: [
-        {
-          name: "Game / Item",
-          value: `[${gameName}](${gameUrl})\n<${gameUrl}>`
-        },
-        {
-          name: "Rolimons",
-          value: `<${rolimonsUrl}>`
-        }
+        { name: "🎮 Game / Item", value: `[Test Item](${itemUrl})\n<${itemUrl}>` },
+        { name: "Rolimons", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
     }
 
     const webEmbed = {
       title: "🧪 Test WEB UGC Alert",
-      description: `[${gameName}](${gameUrl})`,
       color: 0xED4245,
       footer: { text: "Web UGC Alert" },
       timestamp: new Date().toISOString(),
       fields: [
-        {
-          name: "Game / Item",
-          value: `[${gameName}](${gameUrl})\n<${gameUrl}>`
-        },
-        {
-          name: "Rolimons",
-          value: `<${rolimonsUrl}>`
-        }
+        { name: "🎮 Game / Item", value: `[Test Item](${itemUrl})\n<${itemUrl}>` },
+        { name: "Rolimons", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
     }
@@ -232,7 +197,7 @@ client.on("messageCreate", async msg => {
       embeds: [webEmbed]
     })
 
-    msg.reply("✅fier is gay")
+    msg.reply("✅ Test sent to FREE and WEB!")
   }
 
   if (msg.content.startsWith("!value ")) {
