@@ -103,7 +103,7 @@ async function checkFreeUGC() {
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           { name: "Game", value: `[${item.name}](${itemUrl})` },
-          { name: "Rolimons", value: `<${rolimonsUrl}>` }
+          { name: "Item", value: `<${rolimonsUrl}>` }
         ],
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
         footer: { text: "" },
@@ -118,7 +118,7 @@ async function checkFreeUGC() {
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           { name: "Game", value: `[${item.name}](${itemUrl})` },
-          { name: "Rolimons", value: `<${rolimonsUrl}>` }
+          { name: "Item", value: `<${rolimonsUrl}>` }
         ],
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
         footer: { text: "Web Ugc" },
@@ -180,7 +180,7 @@ client.on("messageCreate", async msg => {
       timestamp: new Date().toISOString(),
       fields: [
         { name: "Game", value: `[Test Item](${itemUrl})` },
-        { name: "Rolimons", value: `<${rolimonsUrl}>` }
+        { name: "Item", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
     }
@@ -192,7 +192,7 @@ client.on("messageCreate", async msg => {
       timestamp: new Date().toISOString(),
       fields: [
         { name: "Game", value: `[Test Item](${itemUrl})` },
-        { name: "Rolimons", value: `<${rolimonsUrl}>` }
+        { name: "Item", value: `<${rolimonsUrl}>` }
       ],
       thumbnail: { url: ROSE_ICON_URL }
     }
