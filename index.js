@@ -91,9 +91,9 @@ async function checkFreeUGC() {
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           {
             name: "🎮 Game",
-            value: "[Try on Catalog Items!](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+            value: "[Game Here](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
           },
-          { name: "🔗 Rolimons", value: rolimonsUrl }
+          { name: "Click ME", value: rolimonsUrl }
         ],
         color: 0x3498db,
         footer: { text: "Free UGC Alert" },
@@ -108,12 +108,12 @@ async function checkFreeUGC() {
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           {
             name: "🎮 Game",
-            value: "[Try on Catalog Items!](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+            value: "[Game Here](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
           },
-          { name: "🔗 Rolimons", value: rolimonsUrl }
+          { name: "Click Here", value: rolimonsUrl }
         ],
         color: 0x57f287,
-        footer: { text: "UGC Web Feed" },
+        footer: { text: "Web Ugc" },
         timestamp: new Date().toISOString()
       }
 
