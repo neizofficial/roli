@@ -73,31 +73,74 @@ async function checkFreeUGC() {
       const itemId = item.id?.toString()
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
-      if (!itemId || !isFree || !isUGC || notifiedItems.has(itemId)) continue
+      if (!itemId || !isUGC || notifiedItems.has(itemId)) continue
 
       notifiedItems.add(itemId)
       newCount++
 
       const imageUrl = await getItemImage(itemId)
 
-      const embed = {
-        title: `>: ${item.name}`,
-        url: `https://www.roblox.com/catalog/${itemId}`,
+      const robloxUrl = `https://www.roblox.com/catalog/${itemId}`
+      const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
+      const tryOnGameUrl = "https://www.roblox.com/games/5233461676/Try-on-Catalog-Items"
+
+      const freeEmbed = {
+        title: `FREE UGC: ${item.name}`,
+        url: robloxUrl,
         fields: [
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          { name: "🔗 Links", value: `[Roblox Page](https://www.roblox.com/catalog/${itemId}) • [Rolimons](https://www.rolimons.com/item/${itemId})` }
+          { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl})` }
         ],
-        color: 0x00ff88,
+        color: 3447003,
         footer: { text: "Free UGC Alert" },
         timestamp: new Date().toISOString()
       }
 
-      if (imageUrl) embed.thumbnail = { url: imageUrl }
+      const paidEmbed = {
+        title: `PAID UGC (seen with free search): ${item.name}`,
+        url: robloxUrl,
+        fields: [
+          { name: "💰 Price", value: item.price ? item.price.toString() : "Unknown", inline: true },
+          { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
+          { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
+          { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl})` }
+        ],
+        color: 15548997,
+        footer: { text: "Paid UGC Seen" },
+        timestamp: new Date().toISOString()
+      }
 
-      await sendWebhookTo(FREE_WEBHOOK, embed)
-      console.log(`Notified FREE: ${item.name} (${itemId})`)
+      const webEmbed = {
+        title: `UGC Info: ${item.name}`,
+        url: robloxUrl,
+        fields: [
+          { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
+          { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
+          { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
+          { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+        ],
+        color: 5763719,
+        footer: { text: "UGC Web Feed" },
+        timestamp: new Date().toISOString()
+      }
+
+      if (imageUrl) {
+        freeEmbed.thumbnail = { url: imageUrl }
+        paidEmbed.thumbnail = { url: imageUrl }
+        webEmbed.thumbnail = { url: imageUrl }
+      }
+
+      if (isFree) {
+        await sendWebhookTo(FREE_WEBHOOK, freeEmbed)
+      } else {
+        await sendWebhookTo(PAID_WEBHOOK, paidEmbed)
+      }
+
+      await sendWebhookTo(WEB_WEBHOOK, webEmbed)
+
+      console.log(`Notified FREE/PAID/WEB: ${item.name} (${itemId})`)
     }
 
     console.log(`Check complete: scanned ${unique.length} items, ${newCount} new, ${notifiedItems.size} total tracked.`)
@@ -126,14 +169,48 @@ client.on("messageCreate", async msg => {
   }
 
   if (msg.content === "!testugc") {
-    await sendWebhookTo(WEB_WEBHOOK, {
-      title: "🧪 Test UGC Alert",
-      description: "This is a test of the free UGC notification system.",
-      color: 0x00ff88,
+    const robloxUrl = "https://www.roblox.com/catalog/0"
+    const rolimonsUrl = "https://www.rolimons.com/item/0"
+    const tryOnGameUrl = "https://www.roblox.com/games/5233461676/Try-on-Catalog-Items"
+
+    const freeEmbed = {
+      title: "🧪 Test FREE UGC Alert",
+      description: "Test embed for FREE channel.",
+      color: 3447003,
       footer: { text: "Free UGC Alert" },
-      timestamp: new Date().toISOString()
-    })
-    msg.reply("✅ Test sent!")
+      timestamp: new Date().toISOString(),
+      fields: [
+        { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl})` }
+      ]
+    }
+
+    const paidEmbed = {
+      title: "🧪 Test PAID UGC Alert",
+      description: "Test embed for PAID channel.",
+      color: 15548997,
+      footer: { text: "Paid UGC Alert" },
+      timestamp: new Date().toISOString(),
+      fields: [
+        { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl})` }
+      ]
+    }
+
+    const webEmbed = {
+      title: "🧪 Test WEB UGC Alert",
+      description: "Test embed for WEB channel.",
+      color: 5763719,
+      footer: { text: "Web UGC Alert" },
+      timestamp: new Date().toISOString(),
+      fields: [
+        { name: "🔗 Links", value: `[Roblox Catalog](${robloxUrl}) • [Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+      ]
+    }
+
+    await sendWebhookTo(FREE_WEBHOOK, freeEmbed)
+    await sendWebhookTo(PAID_WEBHOOK, paidEmbed)
+    await sendWebhookTo(WEB_WEBHOOK, webEmbed)
+
+    msg.reply("✅ Test sent to FREE, PAID, and WEB!")
   }
 
   if (msg.content.startsWith("!value ")) {
@@ -149,7 +226,7 @@ client.on("messageCreate", async msg => {
         .setTitle(`📦 ${data[0]}`)
         .setURL(`https://www.rolimons.com/item/${id}`)
         .addFields(
-          { name: "💰 Value", value: data[2] ? `${data[2].toLocaleString()} RAP` : "No value", inline: true },
+          { name: "💰 Value", value: data[3] && data[3] !== -1 ? `${data[3].toLocaleString()} Value` : "No value", inline: true },
           { name: "📈 Demand", value: ["Unassigned", "Terrible", "Low", "Normal", "High", "Amazing"][data[5]] ?? "Unknown", inline: true },
           { name: "📊 Trend", value: ["Unassigned", "Lowering", "Unstable", "Stable", "Rising", "Projected"][data[6]] ?? "Unknown", inline: true }
         )
