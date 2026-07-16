@@ -94,6 +94,12 @@ async function checkFreeUGC() {
       const imageUrl = await getItemImage(itemId, item.itemType)
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
+      const creatorUrl = item.creatorTargetId
+        ? (item.creatorType === "Group"
+            ? `https://www.roblox.com/groups/${item.creatorTargetId}`
+            : `https://www.roblox.com/users/${item.creatorTargetId}/profile`)
+        : null
+      const creatorValue = creatorUrl ? `[${item.creatorName ?? "Unknown"}](${creatorUrl})` : (item.creatorName ?? "Unknown")
 
       const freeEmbed = {
         title: item.name,
@@ -101,7 +107,7 @@ async function checkFreeUGC() {
         fields: [
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
-          { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
+          { name: "👤 Creator", value: creatorValue, inline: true },
           { name: "Game", value: `[${item.name}](${itemUrl})` },
           { name: "Item", value: `<${rolimonsUrl}>` }
         ],
@@ -116,7 +122,7 @@ async function checkFreeUGC() {
         fields: [
           { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
-          { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
+          { name: "👤 Creator", value: creatorValue, inline: true },
           { name: "Game", value: `[${item.name}](${itemUrl})` },
           { name: "Item", value: `<${rolimonsUrl}>` }
         ],
