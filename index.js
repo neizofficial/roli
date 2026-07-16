@@ -19,7 +19,7 @@ const WEB_WEBHOOK = process.env.WEB_WEBHOOK
 const FREE_ROLE_ID = "1509514820913729557"
 const PAID_ROLE_ID = "1509533927134593105"
 
-const ROSE_ICON_URL = "https://static.wikia.nocookie.net/roblox/images/8/81/Rose.png"
+const ROSE_ICON_URL = "https://i.imgur.com/your-uploaded-icon.png"
 
 let notifiedItems = new Set()
 
@@ -37,14 +37,23 @@ async function sendWebhookTo(url, payload) {
   }
 }
 
-async function getItemImage(itemId) {
+async function getItemImage(itemId, itemType) {
   try {
-    const res = await axios.get(
-      `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&returnPolicy=PlaceHolder&size=420x420&format=Png&isCircular=false`,
-      { headers: { Accept: "application/json" } }
-    )
-    return res.data?.data?.[0]?.imageUrl ?? null
-  } catch {
+    const isBundle = itemType === "Bundle"
+    const url = isBundle
+      ? `https://thumbnails.roblox.com/v1/bundles/icons?bundleIds=${itemId}&size=420x420&format=Png`
+      : `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&returnPolicy=PlaceHolder&size=420x420&format=Png&isCircular=false`
+
+    const res = await axios.get(url, { headers: { Accept: "application/json" } })
+    const imageUrl = res.data?.data?.[0]?.imageUrl
+
+    if (!imageUrl) {
+      console.warn(`No thumbnail returned for ${itemType ?? "Asset"} ${itemId}`)
+      return null
+    }
+    return imageUrl
+  } catch (e) {
+    console.error(`getItemImage failed for ${itemId}:`, e.message)
     return null
   }
 }
@@ -82,7 +91,7 @@ async function checkFreeUGC() {
       notifiedItems.add(itemId)
       newCount++
 
-      const imageUrl = await getItemImage(itemId)
+      const imageUrl = await getItemImage(itemId, item.itemType)
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
 
