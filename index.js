@@ -177,10 +177,10 @@ client.on("messageCreate", async msg => {
       timestamp: new Date().toISOString(),
       fields: [
         {
-          name: "🎮 Game",
+          name: "",
           value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
-        { name: "🔗 Rolimons", value: rolimonsUrl }
+        { name: "", value: rolimonsUrl }
       ]
     }
 
@@ -195,7 +195,7 @@ client.on("messageCreate", async msg => {
           name: "",
           value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
-        { name: "Click Me", value: rolimonsUrl }
+        { name: "", value: rolimonsUrl }
       ]
     }
 
@@ -230,7 +230,7 @@ client.on("messageCreate", async msg => {
           { name: "📊 Trend", value: ["None", "Lowering", "Unstable", "Stable", "Raising", "Fluctuating"][data[6] + 1] ?? "Unknown", inline: true }
         )
         .setColor(0x00b4d8)
-        .setFooter({ text: "Powered by Rolimons" })
+        .setFooter({ text: "" })
 
       if (imageUrl) embed.setThumbnail(imageUrl)
       msg.reply({ embeds: [embed] })
