@@ -16,6 +16,9 @@ const TOKEN = process.env.DISCORD_TOKEN
 const FREE_WEBHOOK = process.env.FREE_WEBHOOK
 const WEB_WEBHOOK = process.env.WEB_WEBHOOK
 
+const FREE_ROLE_ID = "1509514820913729557"
+const PAID_ROLE_ID = "1509533927134593105"
+
 let notifiedItems = new Set()
 
 http.createServer((req, res) => {
@@ -23,10 +26,10 @@ http.createServer((req, res) => {
   res.end("OK")
 }).listen(process.env.PORT || 10000)
 
-async function sendWebhookTo(url, embed) {
+async function sendWebhookTo(url, payload) {
   if (!url) return
   try {
-    await axios.post(url, { embeds: [embed] })
+    await axios.post(url, payload)
   } catch (e) {
     console.error(`Webhook failed (${url.slice(0, 50)}...):`, e.message)
   }
@@ -68,8 +71,6 @@ async function checkFreeUGC() {
 
     let newCount = 0
 
-    const tryOnGameUrl = "https://www.roblox.com/games/5233461676/Try-on-Catalog-Items"
-
     for (const item of unique) {
       const itemId = item.id?.toString()
       const isFree = item.price === 0 || item.price === null
@@ -80,16 +81,19 @@ async function checkFreeUGC() {
       newCount++
 
       const imageUrl = await getItemImage(itemId)
-
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
 
       const freeEmbed = {
         title: `FREE UGC: ${item.name}`,
         fields: [
-          { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
+          { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          { name: "🔗 Links", value: `[Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+          {
+            name: "🎮 Game",
+            value: "[Try on Catalog Items!](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          },
+          { name: "🔗 Rolimons", value: rolimonsUrl }
         ],
         color: 0x3498db,
         footer: { text: "Free UGC Alert" },
@@ -97,12 +101,16 @@ async function checkFreeUGC() {
       }
 
       const webEmbed = {
-        title: `UGC Info: ${item.name}`,
+        title: `UGC Web Feed: ${item.name}`,
         fields: [
           { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
-          { name: "🔗 Links", value: `[Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+          {
+            name: "🎮 Game",
+            value: "[Try on Catalog Items!](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          },
+          { name: "🔗 Rolimons", value: rolimonsUrl }
         ],
         color: 0x57f287,
         footer: { text: "UGC Web Feed" },
@@ -115,10 +123,20 @@ async function checkFreeUGC() {
       }
 
       if (isFree) {
-        await sendWebhookTo(FREE_WEBHOOK, freeEmbed)
+        await sendWebhookTo(FREE_WEBHOOK, {
+          content: `<@&${FREE_ROLE_ID}>`,
+          embeds: [freeEmbed]
+        })
+      } else {
+        await sendWebhookTo(FREE_WEBHOOK, {
+          content: `<@&${PAID_ROLE_ID}>`,
+          embeds: [webEmbed]
+        })
       }
 
-      await sendWebhookTo(WEB_WEBHOOK, webEmbed)
+      await sendWebhookTo(WEB_WEBHOOK, {
+        embeds: [webEmbed]
+      })
 
       console.log(`Notified FREE/WEB: ${item.name} (${itemId})`)
     }
@@ -149,7 +167,6 @@ client.on("messageCreate", async msg => {
   }
 
   if (msg.content === "!testugc") {
-    const tryOnGameUrl = "https://www.roblox.com/games/5233461676/Try-on-Catalog-Items"
     const rolimonsUrl = "https://www.rolimons.com/item/0"
 
     const freeEmbed = {
@@ -159,7 +176,11 @@ client.on("messageCreate", async msg => {
       footer: { text: "Free UGC Alert" },
       timestamp: new Date().toISOString(),
       fields: [
-        { name: "🔗 Links", value: `[Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+        {
+          name: "🎮 Game",
+          value: "[Click Me](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+        },
+        { name: "🔗 Rolimons", value: rolimonsUrl }
       ]
     }
 
@@ -170,12 +191,22 @@ client.on("messageCreate", async msg => {
       footer: { text: "Web UGC Alert" },
       timestamp: new Date().toISOString(),
       fields: [
-        { name: "🔗 Links", value: `[Rolimons](${rolimonsUrl}) • [Try-On Game](${tryOnGameUrl})` }
+        {
+          name: "Game",
+          value: "[Click Me](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+        },
+        { name: "Click Me", value: rolimonsUrl }
       ]
     }
 
-    await sendWebhookTo(FREE_WEBHOOK, freeEmbed)
-    await sendWebhookTo(WEB_WEBHOOK, webEmbed)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [freeEmbed]
+    })
+
+    await sendWebhookTo(WEB_WEBHOOK, {
+      embeds: [webEmbed]
+    })
 
     msg.reply("✅ Test sent to FREE and WEB!")
   }
