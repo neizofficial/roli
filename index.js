@@ -84,24 +84,24 @@ async function checkFreeUGC() {
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
 
       const freeEmbed = {
-        title: `FREE UGC: ${item.name}`,
+        title: `=>: ${item.name}`,
         fields: [
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
           { name: "👤 Creator", value: item.creatorName ?? "Unknown", inline: true },
           {
-            name: "🎮 Game",
-            value: "[Game Here](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+            name: "",
+            value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
           },
-          { name: "Click ME", value: rolimonsUrl }
+          { name: "", value: rolimonsUrl }
         ],
         color: 0x3498db,
-        footer: { text: "Free UGC Alert" },
+        footer: { text: "" },
         timestamp: new Date().toISOString()
       }
 
       const webEmbed = {
-        title: `UGC Web Feed: ${item.name}`,
+        title: `test: ${item.name}`,
         fields: [
           { name: "💰 Price", value: isFree ? "FREE" : (item.price ? item.price.toString() : "Unknown"), inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "?"}`, inline: true },
@@ -178,7 +178,7 @@ client.on("messageCreate", async msg => {
       fields: [
         {
           name: "🎮 Game",
-          value: "[Click Me](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
         { name: "🔗 Rolimons", value: rolimonsUrl }
       ]
@@ -192,8 +192,8 @@ client.on("messageCreate", async msg => {
       timestamp: new Date().toISOString(),
       fields: [
         {
-          name: "Game",
-          value: "[Click Me](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
+          name: "",
+          value: "[](https://www.roblox.com/games/5233461676/Try-on-Catalog-Items)"
         },
         { name: "Click Me", value: rolimonsUrl }
       ]
