@@ -2,6 +2,7 @@ require("dotenv").config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 const axios = require("axios");
 const cron = require("node-cron");
+const http = require("http");
 
 const client = new Client({
   intents: [
@@ -12,12 +13,18 @@ const client = new Client({
 });
 
 const TOKEN = process.env.DISCORD_TOKEN;
-// Comma-separated list of webhook URLs, e.g. "https://discord.com/api/webhooks/AAA,https://discord.com/api/webhooks/BBB"
-const WEBHOOK_URLS = (process.env.WEBHOOK_URLS || process.env.WEBHOOK_URL || "")
-  .split(",")
-  .map(u => u.trim())
-  .filter(Boolean);
+const WEBHOOK_URLS = [
+  process.env.FREE_WEBHOOK,
+  process.env.PAID_WEBHOOK,
+  process.env.WEB_WEBHOOK
+].filter(Boolean);
+
 let notifiedItems = new Set();
+
+http.createServer((req, res) => {
+  res.writeHead(200, { "Content-Type": "text/plain" });
+  res.end("OK");
+}).listen(process.env.PORT || 10000);
 
 async function sendWebhook(embed) {
   await Promise.all(
@@ -33,7 +40,7 @@ async function getItemImage(itemId) {
   try {
     const res = await axios.get(
       `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&returnPolicy=PlaceHolder&size=420x420&format=Png&isCircular=false`,
-      { headers: { "Accept": "application/json" } }
+      { headers: { Accept: "application/json" } }
     );
     return res.data?.data?.[0]?.imageUrl ?? null;
   } catch {
@@ -48,11 +55,11 @@ async function checkFreeUGC() {
       "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
-      "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
+      "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3"
     ];
 
     const results = await Promise.all(
-      urls.map(u => axios.get(u, { headers: { "Accept": "application/json" } }).catch(() => null))
+      urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null))
     );
 
     const allItems = results.flatMap(r => r?.data?.data ?? []);
@@ -64,6 +71,7 @@ async function checkFreeUGC() {
     });
 
     let newCount = 0;
+
     for (const item of unique) {
       const itemId = item.id?.toString();
       const isFree = item.price === 0 || item.price === null;
@@ -94,6 +102,7 @@ async function checkFreeUGC() {
       await sendWebhook(embed);
       console.log(`Notified: ${item.name} (${itemId})`);
     }
+
     console.log(`Check complete: scanned ${unique.length} items, ${newCount} new, ${notifiedItems.size} total tracked.`);
   } catch (e) {
     console.error("Check error:", e.message);
@@ -102,7 +111,7 @@ async function checkFreeUGC() {
 
 cron.schedule("* * * * *", checkFreeUGC);
 
-client.on("messageCreate", async (msg) => {
+client.on("messageCreate", async msg => {
   if (msg.author.bot) return;
 
   if (msg.content === "!help") {
@@ -115,6 +124,7 @@ client.on("messageCreate", async (msg) => {
         { name: "!help", value: "Show this menu" }
       )
       .setColor(0x2ecc71);
+
     msg.reply({ embeds: [embed] });
   }
 
@@ -143,14 +153,17 @@ client.on("messageCreate", async (msg) => {
         .setURL(`https://www.rolimons.com/item/${id}`)
         .addFields(
           { name: "💰 Value", value: data[2] ? `${data[2].toLocaleString()} RAP` : "No value", inline: true },
-          { name: "📈 Demand", value: ["Unassigned","Terrible","Low","Normal","High","Amazing"][data[5]] ?? "Unknown", inline: true },
-          { name: "📊 Trend", value: ["Unassigned","Lowering","Unstable","Stable","Rising","Projected"][data[6]] ?? "Unknown", inline: true }
+          { name: "📈 Demand", value: ["Unassigned", "Terrible", "Low", "Normal", "High", "Amazing"][data[5]] ?? "Unknown", inline: true },
+          { name: "📊 Trend", value: ["Unassigned", "Lowering", "Unstable", "Stable", "Rising", "Projected"][data[6]] ?? "Unknown", inline: true }
         )
         .setColor(0x00b4d8)
         .setFooter({ text: "Powered by Rolimons" });
+
       if (imageUrl) embed.setThumbnail(imageUrl);
       msg.reply({ embeds: [embed] });
-    } catch (e) { msg.reply("⚠️ Failed to fetch data."); }
+    } catch {
+      msg.reply("⚠️ Failed to fetch data.");
+    }
   }
 
   if (msg.content.startsWith("!player ")) {
@@ -166,8 +179,11 @@ client.on("messageCreate", async (msg) => {
         )
         .setColor(0x9b59b6)
         .setURL(`https://www.rolimons.com/player/${userId}`);
+
       msg.reply({ embeds: [embed] });
-    } catch (e) { msg.reply("⚠️ Player not found."); }
+    } catch {
+      msg.reply("⚠️ Player not found.");
+    }
   }
 });
 
