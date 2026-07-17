@@ -175,12 +175,11 @@ async function checkFreeUGC() {
 cron.schedule("*/30 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
-client.once("ready", () => {
+client.once("clientReady", () => {
   console.log(`✅ Bot online as ${client.user.tag}`)
   loadNotified()
   fetchRolimonsData()
   checkFreeUGC()
 })
 
-client.login(TOKEN)
 client.login(TOKEN)
