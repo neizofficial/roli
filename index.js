@@ -44,16 +44,19 @@ async function getItemImage(itemId) {
 
 async function getGameInfo(itemId) {
   try {
-    // Try to get product info
-    const res = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`)
-    const data = res.data
-    
-    if (data.AssetTypeId === 19 || data.AssetTypeId === 17) { // UGC types
-      // Some items have root place
-      if (data.RootPlaceId) {
+    const catalogRes = await axios.get(
+      `https://catalog.roblox.com/v1/catalog/items/details?itemType=Asset&id=${itemId}`,
+      { headers: { Accept: "application/json" } }
+    )
+    const itemData = catalogRes.data?.data?.[0]
+    if (!itemData) return null
+
+    if (itemData.saleLocationType === "ExperiencesDevApiOnly" || itemData.saleLocationType === "Experiences") {
+      const productRes = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`).catch(() => null)
+      if (productRes?.data?.RootPlaceId) {
         return {
-          name: data.Name || "Unknown Game",
-          url: `https://www.roblox.com/games/${data.RootPlaceId}`
+          name: productRes.data.Name || itemData.name || "Associated Game",
+          url: `https://www.roblox.com/games/${productRes.data.RootPlaceId}`
         }
       }
     }
@@ -72,41 +75,31 @@ async function checkFreeUGC() {
       "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3"
     ]
-
     const results = await Promise.all(
       urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null))
     )
-
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
     const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
-
     for (const item of unique) {
       const itemId = item.id?.toString()
       if (!itemId || notifiedItems.has(itemId)) continue
-
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
       if (!isFree || !isUGC) continue
-
       notifiedItems.add(itemId)
-
       const imageUrl = await getItemImage(itemId)
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
-
-      const creatorValue = item.creatorTargetId 
-        ? `[${item.creatorName}](${item.creatorType === "Group" 
-            ? `https://www.roblox.com/groups/${item.creatorTargetId}` 
+      const creatorValue = item.creatorTargetId
+        ? `[${item.creatorName}](${item.creatorType === "Group"
+            ? `https://www.roblox.com/groups/${item.creatorTargetId}`
             : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
         : (item.creatorName || "Unknown")
-
-      // Try to get real game info
       const gameInfo = await getGameInfo(itemId)
-      const gameFieldValue = gameInfo 
-        ? `[${gameInfo.name}](${gameInfo.url})` 
-        : `[${item.name}](${itemUrl})`
-
+      const gameFieldValue = gameInfo
+        ? `[${gameInfo.name}](${gameInfo.url})`
+        : "No specific game (Catalog Item)"
       const freeEmbed = {
         title: item.name,
         color: 0xED4245,
@@ -120,12 +113,10 @@ async function checkFreeUGC() {
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
         timestamp: new Date().toISOString()
       }
-
       await sendWebhookTo(FREE_WEBHOOK, {
         content: `<@&${FREE_ROLE_ID}>`,
         embeds: [freeEmbed]
       })
-
       console.log(`Notified: ${item.name} (${itemId})`)
     }
   } catch (e) {
