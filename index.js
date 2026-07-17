@@ -22,7 +22,6 @@ const NOTIFIED_FILE = "notified.json"
 
 let notifiedItems = new Set()
 
-// Load previously notified items
 function loadNotified() {
   try {
     if (fs.existsSync(NOTIFIED_FILE)) {
@@ -35,7 +34,6 @@ function loadNotified() {
   }
 }
 
-// Save notified items to file
 function saveNotified() {
   try {
     fs.writeFileSync(NOTIFIED_FILE, JSON.stringify([...notifiedItems]))
@@ -103,8 +101,7 @@ function getRolimonsInfo(itemId) {
   const data = rolimonsData[itemId]
   if (!data) return null
 
-  const [_, __, rap, value, ___, demand, ____, projected, hyped, rare] = data
-
+  const [_, __, rap, value, ___, demand] = data
   const demandMap = { "-1": "None", "0": "Terrible", "1": "Low", "2": "Normal", "3": "High", "4": "Amazing" }
 
   return {
@@ -152,7 +149,9 @@ async function checkFreeUGC() {
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
 
       const creatorValue = item.creatorTargetId
-        ? `[${item.creatorName}](${item.creatorType === "Group" ? `https://www.roblox.com/groups/${item.creatorTargetId}` : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
+        ? `[${item.creatorName}](${item.creatorType === "Group" 
+            ? `https://www.roblox.com/groups/${item.creatorTargetId}` 
+            : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
         : (item.creatorName || "Unknown")
 
       const gameInfo = await getGameInfo(itemId)
@@ -171,7 +170,12 @@ async function checkFreeUGC() {
       }
 
       fields.push({ name: "🎮 Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
-      fields.push({ name: "🔗 Rolimons", value: `[View](${rolimonsUrl})` })
+      
+      // Changed to "Item" with item name as link text
+      fields.push({ 
+        name: "🔗 Item", 
+        value: `[${item.name}](${rolimonsUrl})` 
+      })
 
       const freeEmbed = {
         title: item.name,
@@ -187,7 +191,7 @@ async function checkFreeUGC() {
         embeds: [freeEmbed]
       })
 
-      console.log(`🆕 Notified new item: ${item.name} (${itemId})`)
+      console.log(`🆕 Notified: ${item.name} (${itemId})`)
     }
 
     if (newNotifications > 0) saveNotified()
