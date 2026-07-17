@@ -1,5 +1,5 @@
 require("dotenv").config()
-const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js")
+const { Client, GatewayIntentBits } = require("discord.js")
 const axios = require("axios")
 const cron = require("node-cron")
 const http = require("http")
@@ -55,7 +55,7 @@ async function getGameInfo(itemId) {
       const productRes = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`).catch(() => null)
       if (productRes?.data?.RootPlaceId) {
         return {
-          name: productRes.data.Name || itemData.name || "Associated Game",
+          name: productRes.data.Name || itemData.name || "Game",
           url: `https://www.roblox.com/games/${productRes.data.RootPlaceId}`
         }
       }
@@ -99,7 +99,7 @@ async function checkFreeUGC() {
       const gameInfo = await getGameInfo(itemId)
       const gameFieldValue = gameInfo
         ? `[${gameInfo.name}](${gameInfo.url})`
-        : "No specific game (Catalog Item)"
+        : `[Catalog Item](${itemUrl})`
       const freeEmbed = {
         title: item.name,
         color: 0xED4245,
