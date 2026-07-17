@@ -6,11 +6,7 @@ const http = require("http")
 const fs = require("fs")
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+  intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ]
 })
 
 const TOKEN = process.env.DISCORD_TOKEN
@@ -45,9 +41,7 @@ http.createServer((req, res) => {
 async function fetchRolimonsData() {
   try {
     const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
-    if (res.data?.success && res.data?.items) {
-      rolimonsData = res.data.items
-    }
+    if (res.data?.success && res.data?.items) rolimonsData = res.data.items
   } catch (e) {}
 }
 
@@ -62,9 +56,7 @@ async function getItemImage(itemId) {
   try {
     const res = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`)
     return res.data?.data?.[0]?.imageUrl || null
-  } catch {
-    return null
-  }
+  } catch { return null }
 }
 
 async function getGameInfo(itemId) {
@@ -76,13 +68,8 @@ async function getGameInfo(itemId) {
     const gameRes = await axios.get(`https://games.roblox.com/v1/games?universeIds=${universeId}`)
     const gameData = gameRes.data?.data?.[0]
     if (!gameData?.rootPlaceId) return null
-    return {
-      name: gameData.name || "Game",
-      url: `https://www.roblox.com/games/${gameData.rootPlaceId}`
-    }
-  } catch {
-    return null
-  }
+    return { name: gameData.name || "Game", url: `https://www.roblox.com/games/${gameData.rootPlaceId}` }
+  } catch { return null }
 }
 
 function getRolimonsInfo(itemId) {
@@ -99,9 +86,7 @@ function getRolimonsInfo(itemId) {
 
 async function checkFreeUGC() {
   try {
-    if (Object.keys(rolimonsData).length === 0) {
-      await fetchRolimonsData()
-    }
+    if (Object.keys(rolimonsData).length === 0) await fetchRolimonsData()
 
     const urls = [
       "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
@@ -112,7 +97,6 @@ async function checkFreeUGC() {
     ]
 
     const results = await Promise.all(urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null)))
-
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
     const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
@@ -135,9 +119,7 @@ async function checkFreeUGC() {
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
 
       const creatorValue = item.creatorTargetId
-        ? `[${item.creatorName}](${item.creatorType === "Group" 
-            ? `https://www.roblox.com/groups/${item.creatorTargetId}` 
-            : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
+        ? `[${item.creatorName}](${item.creatorType === "Group" ? `https://www.roblox.com/groups/${item.creatorTargetId}` : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
         : (item.creatorName || "Unknown")
 
       const gameInfo = await getGameInfo(itemId)
@@ -167,19 +149,18 @@ async function checkFreeUGC() {
         url: itemUrl
       }
 
-      await sendWebhookTo(FREE_WEBHOOK, {
-        content: `<@&${FREE_ROLE_ID}>`,
-        embeds: [freeEmbed]
-      })
-
-      await new Promise(resolve => setTimeout(resolve, 2500))
+      await sendWebhookTo(FREE_WEBHOOK, { content: `<@&${FREE_ROLE_ID}>`, embeds: [freeEmbed] })
 
       console.log(`🆕 Notified: ${item.name} (${itemId})`)
+
+      await new Promise(resolve => setTimeout(resolve, 4000)) // 4 seconds delay - mas safe
     }
 
     if (newNotifications > 0) saveNotified()
 
-  } catch (e) {}
+  } catch (e) {
+    console.error("Check error:", e.message)
+  }
 }
 
 cron.schedule("*/30 * * * *", fetchRolimonsData)
