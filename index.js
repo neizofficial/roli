@@ -113,7 +113,10 @@ async function checkFreeUGC() {
 
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
-      if (!isFree || !isUGC) continue
+      const stock = item.unitsAvailableForConsumption
+      const isLimited = stock != null && stock > 0 && stock < 50000
+
+      if (!isFree || !isUGC || !isLimited) continue
 
       notifiedItems.add(itemId)
       newNotifications++
@@ -132,7 +135,7 @@ async function checkFreeUGC() {
 
       const fields = [
         { name: "💰 Price", value: "FREE", inline: true },
-        { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
+        { name: "📦 Stock", value: `${stock}`, inline: true },
         { name: "👤 Creator", value: creatorValue, inline: true },
         { name: "📅 Created", value: createdDate, inline: true }
       ]
@@ -179,4 +182,5 @@ client.once("ready", () => {
   checkFreeUGC()
 })
 
+client.login(TOKEN)
 client.login(TOKEN)
