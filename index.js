@@ -318,7 +318,7 @@ async function checkFreeUGC() {
   }
 }
 
-cron.schedule("*/30 * * * *", fetchRolimonsData)
+cron.schedule("*/10 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
 client.once(Events.ClientReady, (readyClient) => {
