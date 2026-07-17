@@ -47,9 +47,7 @@ async function fetchRolimonsData() {
 
 async function sendWebhookTo(url, payload) {
   if (!url) return
-  try {
-    await axios.post(url, payload)
-  } catch (e) {}
+  try { await axios.post(url, payload) } catch (e) {}
 }
 
 async function getItemImage(itemId) {
@@ -84,16 +82,22 @@ function getRolimonsInfo(itemId) {
   }
 }
 
+function formatDate(dateStr) {
+  if (!dateStr) return "Unknown"
+  const date = new Date(dateStr)
+  return date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
 async function checkFreeUGC() {
   try {
     if (Object.keys(rolimonsData).length === 0) await fetchRolimonsData()
 
     const urls = [
-      "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
-      "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
-      "https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
-      "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
-      "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3"
+      `https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
+      `https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
+      `https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
+      `https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
+      `https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`
     ]
 
     const results = await Promise.all(urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null)))
@@ -124,11 +128,13 @@ async function checkFreeUGC() {
 
       const gameInfo = await getGameInfo(itemId)
       const rolimonsInfo = getRolimonsInfo(itemId)
+      const createdDate = formatDate(item.itemCreatedUtc || item.createdUtc)
 
       const fields = [
         { name: "💰 Price", value: "FREE", inline: true },
         { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
-        { name: "👤 Creator", value: creatorValue, inline: true }
+        { name: "👤 Creator", value: creatorValue, inline: true },
+        { name: "📅 Created", value: createdDate, inline: true }
       ]
 
       if (rolimonsInfo) {
@@ -151,9 +157,9 @@ async function checkFreeUGC() {
 
       await sendWebhookTo(FREE_WEBHOOK, { content: `<@&${FREE_ROLE_ID}>`, embeds: [freeEmbed] })
 
-      console.log(`🆕 Notified: ${item.name} (${itemId})`)
+      console.log(`🆕 Notified: ${item.name} (${itemId}) - Created: ${createdDate}`)
 
-      await new Promise(resolve => setTimeout(resolve, 4000)) // 4 seconds delay - mas safe
+      await new Promise(resolve => setTimeout(resolve, 5000)) // 5 sec delay
     }
 
     if (newNotifications > 0) saveNotified()
