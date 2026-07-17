@@ -46,12 +46,42 @@ async function fetchRolimonsData() {
   try {
     const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
     if (res.data?.success && res.data?.items) rolimonsData = res.data.items
-  } catch (e) {}
+  } catch (e) {
+    console.error("Rolimons error:", e.response?.status, e.message)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [
+        {
+          title: "Rolimons Error",
+          description: `Status: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
+          color: 0xff0000,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    })
+  }
 }
 
 async function sendWebhookTo(url, payload) {
   if (!url) return
-  try { await axios.post(url, payload) } catch (e) {}
+  try {
+    await axios.post(url, payload)
+  } catch (e) {
+    console.error("Webhook error:", e.response?.status, e.response?.data || e.message)
+    try {
+      await axios.post(url, {
+        content: `<@&${FREE_ROLE_ID}>`,
+        embeds: [
+          {
+            title: "Webhook Error",
+            description: `Status: ${e.response?.status || "N/A"}\nMessage: ${e.message}\nBody: ${JSON.stringify(e.response?.data || {})}`,
+            color: 0xff0000,
+            timestamp: new Date().toISOString()
+          }
+        ]
+      })
+    } catch {}
+  }
 }
 
 async function getItemImage(itemId) {
@@ -60,7 +90,19 @@ async function getItemImage(itemId) {
       `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`
     )
     return res.data?.data?.[0]?.imageUrl || null
-  } catch {
+  } catch (e) {
+    console.error("Image error:", e.response?.status, e.message)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [
+        {
+          title: "Image Fetch Error",
+          description: `Item: ${itemId}\nStatus: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
+          color: 0xff0000,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    })
     return null
   }
 }
@@ -87,7 +129,19 @@ async function getGameInfo(itemId) {
       name: gameData.name || "Game",
       url: `https://www.roblox.com/games/${gameData.rootPlaceId}`
     }
-  } catch {
+  } catch (e) {
+    console.error("Game info error:", e.response?.status, e.message)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [
+        {
+          title: "Game Info Error",
+          description: `Item: ${itemId}\nStatus: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
+          color: 0xff0000,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    })
     return null
   }
 }
@@ -137,7 +191,21 @@ async function checkFreeUGC() {
 
     const results = await Promise.all(
       urls.map((u) =>
-        axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null)
+        axios.get(u, { headers: { Accept: "application/json" } }).catch((e) => {
+          console.error("Catalog error:", e.response?.status, e.message)
+          sendWebhookTo(FREE_WEBHOOK, {
+            content: `<@&${FREE_ROLE_ID}>`,
+            embeds: [
+              {
+                title: "Catalog Fetch Error",
+                description: `URL: ${u}\nStatus: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
+                color: 0xff0000,
+                timestamp: new Date().toISOString()
+              }
+            ]
+          })
+          return null
+        })
       )
     )
 
@@ -145,9 +213,12 @@ async function checkFreeUGC() {
     const seen = new Set()
     const unique = allItems.filter((i) => !seen.has(i.id) && seen.add(i.id))
 
+    const MAX_PER_RUN = 10
     let newNotifications = 0
 
     for (const item of unique) {
+      if (newNotifications >= MAX_PER_RUN) break
+
       const itemId = item.id?.toString()
       if (!itemId || notifiedItems.has(itemId)) continue
 
@@ -227,12 +298,23 @@ async function checkFreeUGC() {
 
       console.log(`🆕 Notified: ${item.name} (${itemId})`)
 
-      await new Promise((resolve) => setTimeout(resolve, 5000))
+      await new Promise((resolve) => setTimeout(resolve, 10000))
     }
 
     if (newNotifications > 0) saveNotified()
   } catch (e) {
     console.error("Check error:", e.message)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [
+        {
+          title: "CheckFreeUGC Error",
+          description: `Message: ${e.message}`,
+          color: 0xff0000,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    })
   }
 }
 
