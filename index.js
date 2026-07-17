@@ -18,11 +18,24 @@ const FREE_ROLE_ID = "1509514820913729557"
 const ROSE_ICON_URL = "https://i.imgur.com/your-uploaded-icon.png"
 
 let notifiedItems = new Set()
+let rolimonsData = {} // Cache for Rolimons item details
 
 http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" })
   res.end("OK")
 }).listen(process.env.PORT || 10000)
+
+async function fetchRolimonsData() {
+  try {
+    const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
+    if (res.data?.success && res.data?.items) {
+      rolimonsData = res.data.items
+      console.log(`✅ Fetched Rolimons data: ${Object.keys(rolimonsData).length} items`)
+    }
+  } catch (e) {
+    console.error("Rolimons fetch failed:", e.message)
+  }
+}
 
 async function sendWebhookTo(url, payload) {
   if (!url) return
@@ -48,11 +61,9 @@ async function getGameInfo(itemId) {
     const saleLocation = detailsRes.data?.SaleLocation
     const universeId = saleLocation?.UniverseIds?.[0] ?? saleLocation?.universeIds?.[0]
     if (!universeId) return null
-
     const gameRes = await axios.get(`https://games.roblox.com/v1/games?universeIds=${universeId}`)
     const gameData = gameRes.data?.data?.[0]
     if (!gameData?.rootPlaceId) return null
-
     return {
       name: gameData.name || "Game",
       url: `https://www.roblox.com/games/${gameData.rootPlaceId}`
@@ -62,8 +73,33 @@ async function getGameInfo(itemId) {
   }
 }
 
+function getRolimonsInfo(itemId) {
+  const data = rolimonsData[itemId]
+  if (!data) return null
+
+  const [name, acronym, rap, value, defaultValue, demand, trend, projected, hyped, rare] = data
+
+  const demandMap = { "-1": "None", "0": "Terrible", "1": "Low", "2": "Normal", "3": "High", "4": "Amazing" }
+  const trendMap = { "-1": "None", "0": "Lowering", "1": "Unstable", "2": "Stable", "3": "Raising", "4": "Fluctuating" }
+
+  return {
+    rap: rap > 0 ? rap : "N/A",
+    value: value > 0 ? value : "N/A",
+    demand: demandMap[demand.toString()] || "None",
+    trend: trendMap[trend.toString()] || "None",
+    projected: projected === 1,
+    hyped: hyped === 1,
+    rare: rare === 1
+  }
+}
+
 async function checkFreeUGC() {
   try {
+    // Refresh Rolimons data occasionally
+    if (Object.keys(rolimonsData).length === 0) {
+      await fetchRolimonsData()
+    }
+
     const urls = [
       "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
@@ -71,9 +107,11 @@ async function checkFreeUGC() {
       "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3",
       "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=3"
     ]
+
     const results = await Promise.all(
       urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null))
     )
+
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
     const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
@@ -87,6 +125,7 @@ async function checkFreeUGC() {
       if (!isFree || !isUGC) continue
 
       notifiedItems.add(itemId)
+
       const imageUrl = await getItemImage(itemId)
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
@@ -98,6 +137,7 @@ async function checkFreeUGC() {
         : (item.creatorName || "Unknown")
 
       const gameInfo = await getGameInfo(itemId)
+      const rolimonsInfo = getRolimonsInfo(itemId)
 
       const fields = [
         { name: "💰 Price", value: "FREE", inline: true },
@@ -105,22 +145,29 @@ async function checkFreeUGC() {
         { name: "👤 Creator", value: creatorValue, inline: true }
       ]
 
-      fields.push({ name: "Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
+      if (rolimonsInfo) {
+        fields.push({ name: "📊 RAP", value: rolimonsInfo.rap.toString(), inline: true })
+        fields.push({ name: "💎 Value", value: rolimonsInfo.value.toString(), inline: true })
+        fields.push({ name: "📈 Demand", value: rolimonsInfo.demand, inline: true })
+      }
 
-      fields.push({ name: "Item", value: `<${rolimonsUrl}>` })
+      fields.push({ name: "🎮 Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
+      fields.push({ name: "🔗 Rolimons", value: `[View on Rolimons](${rolimonsUrl})` })
 
       const freeEmbed = {
         title: item.name,
         color: 0xED4245,
         fields: fields,
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        url: itemUrl
       }
 
       await sendWebhookTo(FREE_WEBHOOK, {
         content: `<@&${FREE_ROLE_ID}>`,
         embeds: [freeEmbed]
       })
+
       console.log(`Notified: ${item.name} (${itemId})`)
     }
   } catch (e) {
@@ -128,10 +175,13 @@ async function checkFreeUGC() {
   }
 }
 
+// Fetch Rolimons data on startup + every 30 minutes
+cron.schedule("*/30 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
 client.once("ready", () => {
   console.log(`✅ Bot online as ${client.user.tag}`)
+  fetchRolimonsData()
   checkFreeUGC()
 })
 
