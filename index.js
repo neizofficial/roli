@@ -1,12 +1,16 @@
 require("dotenv").config()
-const { Client, GatewayIntentBits } = require("discord.js")
+const { Client, GatewayIntentBits, Events } = require("discord.js")
 const axios = require("axios")
 const cron = require("node-cron")
 const http = require("http")
 const fs = require("fs")
 
 const client = new Client({
-  intents: [ GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent ]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 })
 
 const TOKEN = process.env.DISCORD_TOKEN
@@ -52,29 +56,56 @@ async function sendWebhookTo(url, payload) {
 
 async function getItemImage(itemId) {
   try {
-    const res = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`)
+    const res = await axios.get(
+      `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`
+    )
     return res.data?.data?.[0]?.imageUrl || null
-  } catch { return null }
+  } catch {
+    return null
+  }
 }
 
 async function getGameInfo(itemId) {
   try {
-    const detailsRes = await axios.get(`https://economy.roblox.com/v2/assets/${itemId}/details`)
+    const detailsRes = await axios.get(
+      `https://economy.roblox.com/v2/assets/${itemId}/details`
+    )
+
     const saleLocation = detailsRes.data?.SaleLocation
-    const universeId = saleLocation?.UniverseIds?.[0] ?? saleLocation?.universeIds?.[0]
+    const universeId =
+      saleLocation?.UniverseIds?.[0] ?? saleLocation?.universeIds?.[0]
+
     if (!universeId) return null
-    const gameRes = await axios.get(`https://games.roblox.com/v1/games?universeIds=${universeId}`)
+
+    const gameRes = await axios.get(
+      `https://games.roblox.com/v1/games?universeIds=${universeId}`
+    )
     const gameData = gameRes.data?.data?.[0]
     if (!gameData?.rootPlaceId) return null
-    return { name: gameData.name || "Game", url: `https://www.roblox.com/games/${gameData.rootPlaceId}` }
-  } catch { return null }
+
+    return {
+      name: gameData.name || "Game",
+      url: `https://www.roblox.com/games/${gameData.rootPlaceId}`
+    }
+  } catch {
+    return null
+  }
 }
 
 function getRolimonsInfo(itemId) {
   const data = rolimonsData[itemId]
   if (!data) return null
+
   const [_, __, rap, value, ___, demand] = data
-  const demandMap = { "-1": "None", "0": "Terrible", "1": "Low", "2": "Normal", "3": "High", "4": "Amazing" }
+  const demandMap = {
+    "-1": "None",
+    "0": "Terrible",
+    "1": "Low",
+    "2": "Normal",
+    "3": "High",
+    "4": "Amazing"
+  }
+
   return {
     rap: rap > 0 ? rap : "N/A",
     value: value > 0 ? value : "N/A",
@@ -85,7 +116,11 @@ function getRolimonsInfo(itemId) {
 function formatDate(dateStr) {
   if (!dateStr) return "Unknown"
   const date = new Date(dateStr)
-  return date.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' })
+  return date.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  })
 }
 
 async function checkFreeUGC() {
@@ -93,17 +128,22 @@ async function checkFreeUGC() {
     if (Object.keys(rolimonsData).length === 0) await fetchRolimonsData()
 
     const urls = [
-      `https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
-      `https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
-      `https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
-      `https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`,
-      `https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1`
+      "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1",
+      "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1",
+      "https://catalog.roblox.com/v1/search/items/details?Category=4&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1",
+      "https://catalog.roblox.com/v1/search/items/details?Category=8&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1",
+      "https://catalog.roblox.com/v1/search/items/details?Category=12&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2&SortAggregation=1"
     ]
 
-    const results = await Promise.all(urls.map(u => axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null)))
-    const allItems = results.flatMap(r => r?.data?.data ?? [])
+    const results = await Promise.all(
+      urls.map((u) =>
+        axios.get(u, { headers: { Accept: "application/json" } }).catch(() => null)
+      )
+    )
+
+    const allItems = results.flatMap((r) => r?.data?.data ?? [])
     const seen = new Set()
-    const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
+    const unique = allItems.filter((i) => !seen.has(i.id) && seen.add(i.id))
 
     let newNotifications = 0
 
@@ -126,8 +166,12 @@ async function checkFreeUGC() {
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
 
       const creatorValue = item.creatorTargetId
-        ? `[${item.creatorName}](${item.creatorType === "Group" ? `https://www.roblox.com/groups/${item.creatorTargetId}` : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
-        : (item.creatorName || "Unknown")
+        ? `[${item.creatorName}](${
+            item.creatorType === "Group"
+              ? `https://www.roblox.com/groups/${item.creatorTargetId}`
+              : `https://www.roblox.com/users/${item.creatorTargetId}/profile`
+          })`
+        : item.creatorName || "Unknown"
 
       const gameInfo = await getGameInfo(itemId)
       const rolimonsInfo = getRolimonsInfo(itemId)
@@ -141,13 +185,31 @@ async function checkFreeUGC() {
       ]
 
       if (rolimonsInfo) {
-        fields.push({ name: "📊 RAP", value: rolimonsInfo.rap.toString(), inline: true })
-        fields.push({ name: "💎 Value", value: rolimonsInfo.value.toString(), inline: true })
-        fields.push({ name: "📈 Demand", value: rolimonsInfo.demand, inline: true })
+        fields.push({
+          name: "📊 RAP",
+          value: rolimonsInfo.rap.toString(),
+          inline: true
+        })
+        fields.push({
+          name: "💎 Value",
+          value: rolimonsInfo.value.toString(),
+          inline: true
+        })
+        fields.push({
+          name: "📈 Demand",
+          value: rolimonsInfo.demand,
+          inline: true
+        })
       }
 
-      fields.push({ name: "🎮 Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
-      fields.push({ name: "🔗 Item", value: `[${item.name}](${rolimonsUrl})` })
+      fields.push({
+        name: "🎮 Game",
+        value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A"
+      })
+      fields.push({
+        name: "🔗 Item",
+        value: `[${item.name}](${rolimonsUrl})`
+      })
 
       const freeEmbed = {
         title: item.name,
@@ -158,15 +220,17 @@ async function checkFreeUGC() {
         url: itemUrl
       }
 
-      await sendWebhookTo(FREE_WEBHOOK, { content: `<@&${FREE_ROLE_ID}>`, embeds: [freeEmbed] })
+      await sendWebhookTo(FREE_WEBHOOK, {
+        content: `<@&${FREE_ROLE_ID}>`,
+        embeds: [freeEmbed]
+      })
 
       console.log(`🆕 Notified: ${item.name} (${itemId})`)
 
-      await new Promise(resolve => setTimeout(resolve, 5000))
+      await new Promise((resolve) => setTimeout(resolve, 5000))
     }
 
     if (newNotifications > 0) saveNotified()
-
   } catch (e) {
     console.error("Check error:", e.message)
   }
@@ -175,8 +239,8 @@ async function checkFreeUGC() {
 cron.schedule("*/30 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
-client.once("clientReady", () => {
-  console.log(`✅ Bot online as ${client.user.tag}`)
+client.once(Events.ClientReady, (readyClient) => {
+  console.log(`✅ Bot online as ${readyClient.user.tag}`)
   loadNotified()
   fetchRolimonsData()
   checkFreeUGC()
