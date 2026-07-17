@@ -17,32 +17,25 @@ const TOKEN = process.env.DISCORD_TOKEN
 const FREE_WEBHOOK = process.env.FREE_WEBHOOK
 const FREE_ROLE_ID = "1509514820913729557"
 const ROSE_ICON_URL = "https://i.imgur.com/your-uploaded-icon.png"
-
 const NOTIFIED_FILE = "notified.json"
 
 let notifiedItems = new Set()
+let rolimonsData = {}
 
 function loadNotified() {
   try {
     if (fs.existsSync(NOTIFIED_FILE)) {
       const data = JSON.parse(fs.readFileSync(NOTIFIED_FILE, "utf8"))
       notifiedItems = new Set(data)
-      console.log(`✅ Loaded ${notifiedItems.size} previously notified items`)
     }
-  } catch (e) {
-    console.error("Failed to load notified items:", e.message)
-  }
+  } catch (e) {}
 }
 
 function saveNotified() {
   try {
     fs.writeFileSync(NOTIFIED_FILE, JSON.stringify([...notifiedItems]))
-  } catch (e) {
-    console.error("Failed to save notified items:", e.message)
-  }
+  } catch (e) {}
 }
-
-let rolimonsData = {}
 
 http.createServer((req, res) => {
   res.writeHead(200, { "Content-Type": "text/plain" })
@@ -54,20 +47,15 @@ async function fetchRolimonsData() {
     const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
     if (res.data?.success && res.data?.items) {
       rolimonsData = res.data.items
-      console.log(`✅ Fetched Rolimons data: ${Object.keys(rolimonsData).length} items`)
     }
-  } catch (e) {
-    console.error("Rolimons fetch failed:", e.message)
-  }
+  } catch (e) {}
 }
 
 async function sendWebhookTo(url, payload) {
   if (!url) return
   try {
     await axios.post(url, payload)
-  } catch (e) {
-    console.error(`Webhook failed:`, e.message)
-  }
+  } catch (e) {}
 }
 
 async function getItemImage(itemId) {
@@ -100,10 +88,8 @@ async function getGameInfo(itemId) {
 function getRolimonsInfo(itemId) {
   const data = rolimonsData[itemId]
   if (!data) return null
-
   const [_, __, rap, value, ___, demand] = data
   const demandMap = { "-1": "None", "0": "Terrible", "1": "Low", "2": "Normal", "3": "High", "4": "Amazing" }
-
   return {
     rap: rap > 0 ? rap : "N/A",
     value: value > 0 ? value : "N/A",
@@ -170,12 +156,7 @@ async function checkFreeUGC() {
       }
 
       fields.push({ name: "🎮 Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
-      
-      // Changed to "Item" with item name as link text
-      fields.push({ 
-        name: "🔗 Item", 
-        value: `[${item.name}](${rolimonsUrl})` 
-      })
+      fields.push({ name: "🔗 Item", value: `[${item.name}](${rolimonsUrl})` })
 
       const freeEmbed = {
         title: item.name,
@@ -191,17 +172,16 @@ async function checkFreeUGC() {
         embeds: [freeEmbed]
       })
 
+      await new Promise(resolve => setTimeout(resolve, 2500))
+
       console.log(`🆕 Notified: ${item.name} (${itemId})`)
     }
 
     if (newNotifications > 0) saveNotified()
 
-  } catch (e) {
-    console.error("Check error:", e.message)
-  }
+  } catch (e) {}
 }
 
-// Schedules
 cron.schedule("*/30 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
