@@ -44,23 +44,19 @@ async function getItemImage(itemId) {
 
 async function getGameInfo(itemId) {
   try {
-    const catalogRes = await axios.get(
-      `https://catalog.roblox.com/v1/catalog/items/details?itemType=Asset&id=${itemId}`,
-      { headers: { Accept: "application/json" } }
-    )
-    const itemData = catalogRes.data?.data?.[0]
-    if (!itemData) return null
+    const detailsRes = await axios.get(`https://economy.roblox.com/v2/assets/${itemId}/details`)
+    const saleLocation = detailsRes.data?.SaleLocation
+    const universeId = saleLocation?.UniverseIds?.[0] ?? saleLocation?.universeIds?.[0]
+    if (!universeId) return null
 
-    if (itemData.saleLocationType === "ExperiencesDevApiOnly" || itemData.saleLocationType === "Experiences") {
-      const productRes = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`).catch(() => null)
-      if (productRes?.data?.RootPlaceId) {
-        return {
-          name: productRes.data.Name || "Game",
-          url: `https://www.roblox.com/games/${productRes.data.RootPlaceId}`
-        }
-      }
+    const gameRes = await axios.get(`https://games.roblox.com/v1/games?universeIds=${universeId}`)
+    const gameData = gameRes.data?.data?.[0]
+    if (!gameData?.rootPlaceId) return null
+
+    return {
+      name: gameData.name || "Game",
+      url: `https://www.roblox.com/games/${gameData.rootPlaceId}`
     }
-    return null
   } catch {
     return null
   }
@@ -81,11 +77,11 @@ async function checkFreeUGC() {
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
     const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
-    
+
     for (const item of unique) {
       const itemId = item.id?.toString()
       if (!itemId || notifiedItems.has(itemId)) continue
-      
+
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
       if (!isFree || !isUGC) continue
@@ -94,7 +90,7 @@ async function checkFreeUGC() {
       const imageUrl = await getItemImage(itemId)
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
-      
+
       const creatorValue = item.creatorTargetId
         ? `[${item.creatorName}](${item.creatorType === "Group"
             ? `https://www.roblox.com/groups/${item.creatorTargetId}`
@@ -102,16 +98,14 @@ async function checkFreeUGC() {
         : (item.creatorName || "Unknown")
 
       const gameInfo = await getGameInfo(itemId)
-      
+
       const fields = [
         { name: "💰 Price", value: "FREE", inline: true },
         { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
         { name: "👤 Creator", value: creatorValue, inline: true }
       ]
 
-      if (gameInfo) {
-        fields.push({ name: "Game", value: `[${gameInfo.name}](${gameInfo.url})` })
-      }
+      fields.push({ name: "Game", value: gameInfo ? `[${gameInfo.name}](${gameInfo.url})` : "N/A" })
 
       fields.push({ name: "Item", value: `<${rolimonsUrl}>` })
 
