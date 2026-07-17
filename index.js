@@ -31,7 +31,6 @@ function loadNotified() {
     if (fs.existsSync(NOTIFIED_FILE)) {
       const data = JSON.parse(fs.readFileSync(NOTIFIED_FILE, "utf8"))
       notifiedItems = new Set(data)
-      console.log(`Loaded ${notifiedItems.size} items from database.`)
     }
   } catch (e) {}
 }
@@ -42,11 +41,9 @@ function saveNotified() {
   } catch (e) {}
 }
 
-http.createServer((req, res) => {
-  res.writeHead(200); res.end("OK");
-}).listen(process.env.PORT || 10000)
+http.createServer((req, res) => { res.writeHead(200); res.end("Live"); }).listen(process.env.PORT || 10000)
 
-async function fetchRolimonsData() {
+async function fetchRolimons() {
   try {
     const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails", axiosConfig)
     if (res.data?.success) rolimonsData = res.data.items
@@ -60,66 +57,67 @@ async function checkFreeUGC() {
       "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2",
       "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MinPrice=0&MaxPrice=0&salesTypeFilter=1&SortType=2"
     ]
-    
+
     const results = await Promise.all(urls.map(u => axios.get(u, axiosConfig).catch(() => null)))
     const items = results.flatMap(r => r?.data?.data ?? [])
+    const unique = Array.from(new Map(items.map(i => [i.id, i])).values())
     
-    let foundNew = false
-    for (const item of items) {
-      const itemId = item.id?.toString()
-      if (!itemId || notifiedItems.has(itemId)) continue
+    let addedAny = false
+    for (const item of unique) {
+      const id = item.id.toString()
+      if (notifiedItems.has(id)) continue
 
       const isFree = item.price === 0 || item.price === null
       const hasStock = item.unitsAvailableForConsumption > 0
-      if (!isFree || !hasStock) continue
 
-      notifiedItems.add(itemId)
-      foundNew = true
+      if (isFree && hasStock) {
+        notifiedItems.add(id)
+        addedAny = true
 
-      if (!initialized) {
-        console.log(`[Database] Added existing item: ${item.name}`)
-        continue
+        if (!initialized) {
+          console.log(`Stored existing item: ${item.name}`)
+          continue
+        }
+
+        const thumb = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${id}&size=420x420&format=Png`, axiosConfig).catch(() => null)
+        const img = thumb?.data?.data?.[0]?.imageUrl || ROSE_ICON_URL
+
+        await axios.post(FREE_WEBHOOK, {
+          content: `<@&${FREE_ROLE_ID}>`,
+          embeds: [{
+            title: item.name,
+            url: `https://www.roblox.com/catalog/${id}`,
+            color: 0xED4245,
+            fields: [
+              { name: "📦 Stock", value: `${item.unitsAvailableForConsumption}`, inline: true },
+              { name: "👤 Creator", value: item.creatorName, inline: true }
+            ],
+            thumbnail: { url: img },
+            timestamp: new Date().toISOString()
+          }]
+        }).catch(() => null)
+        await new Promise(r => setTimeout(r, 2000))
       }
-
-      console.log(`[NEW ITEM] Sending to Discord: ${item.name}`)
-      
-      const thumb = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`, axiosConfig).catch(() => null)
-      const imageUrl = thumb?.data?.data?.[0]?.imageUrl || ROSE_ICON_URL
-
-      await axios.post(FREE_WEBHOOK, {
-        content: `<@&${FREE_ROLE_ID}>`,
-        embeds: [{
-          title: item.name,
-          url: `https://www.roblox.com/catalog/${itemId}`,
-          color: 0xED4245,
-          fields: [
-            { name: "📦 Stock", value: `${item.unitsAvailableForConsumption}`, inline: true },
-            { name: "👤 Creator", value: item.creatorName, inline: true }
-          ],
-          thumbnail: { url: imageUrl },
-          timestamp: new Date().toISOString()
-        }]
-      }).catch(() => null)
-
-      await new Promise(r => setTimeout(r, 2000))
     }
-
-    if (foundNew) saveNotified()
-    if (!initialized) {
-        initialized = true
-        console.log("Initial scan complete. Waiting for new drops...")
-    }
-  } catch (e) { console.log("Error:", e.message) }
+    if (addedAny) saveNotified()
+    initialized = true
+  } catch (e) {}
 }
 
-cron.schedule("*/30 * * * *", fetchRolimonsData)
+cron.schedule("*/30 * * * *", fetchRolimons)
 cron.schedule("* * * * *", checkFreeUGC)
 
 client.once(Events.ClientReady, async () => {
   console.log(`✅ ${client.user.tag} Online`)
+  
+  // TEST MESSAGE
+  await axios.post(FREE_WEBHOOK, {
+    content: "🛠️ **System Check:** Bot is online and monitoring for new Free Limiteds!"
+  }).catch(e => console.log("Webhook test failed:", e.message))
+
   loadNotified()
-  await fetchRolimonsData()
-  await checkFreeUGC()
+  await fetchRolimons()
+  checkFreeUGC()
 })
 
 client.login(TOKEN)
