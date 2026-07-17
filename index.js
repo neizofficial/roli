@@ -33,25 +33,33 @@ async function sendWebhookTo(url, payload) {
   }
 }
 
-async function getItemImage(itemId, itemType) {
+async function getItemImage(itemId) {
   try {
-    const isBundle = itemType === "Bundle"
-    const url = isBundle
-      ? `https://thumbnails.roblox.com/v1/bundles/icons?bundleIds=${itemId}&size=420x420&format=Png`
-      : `https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&returnPolicy=PlaceHolder&size=420x420&format=Png&isCircular=false`
-    const res = await axios.get(url, { headers: { Accept: "application/json" } })
+    const res = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${itemId}&size=420x420&format=Png`)
     return res.data?.data?.[0]?.imageUrl || null
   } catch {
     return null
   }
 }
 
-async function getGameName(itemId) {
+async function getGameInfo(itemId) {
   try {
+    // Try to get product info
     const res = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`)
-    return res.data?.Name || "Unknown Game"
+    const data = res.data
+    
+    if (data.AssetTypeId === 19 || data.AssetTypeId === 17) { // UGC types
+      // Some items have root place
+      if (data.RootPlaceId) {
+        return {
+          name: data.Name || "Unknown Game",
+          url: `https://www.roblox.com/games/${data.RootPlaceId}`
+        }
+      }
+    }
+    return null
   } catch {
-    return "Unknown Game"
+    return null
   }
 }
 
@@ -71,36 +79,33 @@ async function checkFreeUGC() {
 
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
-    const unique = allItems.filter(i => {
-      if (seen.has(i.id)) return false
-      seen.add(i.id)
-      return true
-    })
+    const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
 
     for (const item of unique) {
       const itemId = item.id?.toString()
+      if (!itemId || notifiedItems.has(itemId)) continue
+
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
-
-      if (!itemId || !isUGC || notifiedItems.has(itemId)) continue
+      if (!isFree || !isUGC) continue
 
       notifiedItems.add(itemId)
 
-      const imageUrl = await getItemImage(itemId, item.itemType)
-      const itemUrl = `https://www.roblox.com/catalog/${itemId}`
+      const imageUrl = await getItemImage(itemId)
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
+      const itemUrl = `https://www.roblox.com/catalog/${itemId}`
 
-      const creatorUrl = item.creatorTargetId
-        ? (item.creatorType === "Group"
-            ? `https://www.roblox.com/groups/${item.creatorTargetId}`
-            : `https://www.roblox.com/users/${item.creatorTargetId}/profile`)
-        : null
+      const creatorValue = item.creatorTargetId 
+        ? `[${item.creatorName}](${item.creatorType === "Group" 
+            ? `https://www.roblox.com/groups/${item.creatorTargetId}` 
+            : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
+        : (item.creatorName || "Unknown")
 
-      const creatorValue = creatorUrl 
-        ? `[${item.creatorName ?? "Unknown"}](${creatorUrl})` 
-        : (item.creatorName ?? "Unknown")
-
-      const gameName = await getGameName(itemId)
+      // Try to get real game info
+      const gameInfo = await getGameInfo(itemId)
+      const gameFieldValue = gameInfo 
+        ? `[${gameInfo.name}](${gameInfo.url})` 
+        : `[${item.name}](${itemUrl})`
 
       const freeEmbed = {
         title: item.name,
@@ -109,7 +114,7 @@ async function checkFreeUGC() {
           { name: "💰 Price", value: "FREE", inline: true },
           { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
           { name: "👤 Creator", value: creatorValue, inline: true },
-          { name: "Game", value: `[${gameName}](${itemUrl})` },
+          { name: "Game", value: gameFieldValue },
           { name: "Item", value: `<${rolimonsUrl}>` }
         ],
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
@@ -129,72 +134,6 @@ async function checkFreeUGC() {
 }
 
 cron.schedule("* * * * *", checkFreeUGC)
-
-client.on("messageCreate", async msg => {
-  if (msg.author.bot) return
-
-  if (msg.content === "!help") {
-    const embed = new EmbedBuilder()
-      .setTitle("🤖 RoliBot Commands")
-      .addFields(
-        { name: "!value <item>", value: "Look up item value, demand & trend" },
-        { name: "!player <userId>", value: "Check player inventory value" },
-        { name: "!help", value: "Show this menu" }
-      )
-      .setColor(0xED4245)
-    msg.reply({ embeds: [embed] })
-  }
-
-  if (msg.content.startsWith("!value ")) {
-    const query = msg.content.slice(7).toLowerCase()
-    try {
-      const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
-      const items = res.data.items
-      const match = Object.entries(items).find(([id, data]) => data[0].toLowerCase().includes(query))
-      if (!match) return msg.reply("❌ Item not found!")
-
-      const [id, data] = match
-      const imageUrl = await getItemImage(id)
-
-      const embed = new EmbedBuilder()
-        .setTitle(`📦 ${data[0]}`)
-        .setURL(`https://www.rolimons.com/item/${id}`)
-        .addFields(
-          { name: "💰 RAP", value: data[2] ? `${data[2].toLocaleString()} RAP` : "No RAP", inline: true },
-          { name: "💰 Value", value: data[3] && data[3] !== -1 ? `${data[3].toLocaleString()} Value` : "No value", inline: true },
-          { name: "📈 Demand", value: ["None", "Terrible", "Low", "Normal", "High", "Amazing"][data[5] + 1] ?? "Unknown", inline: true },
-          { name: "📊 Trend", value: ["None", "Lowering", "Unstable", "Stable", "Raising", "Fluctuating"][data[6] + 1] ?? "Unknown", inline: true }
-        )
-        .setColor(0xED4245)
-      if (imageUrl) embed.setThumbnail(imageUrl)
-      else embed.setThumbnail(ROSE_ICON_URL)
-
-      msg.reply({ embeds: [embed] })
-    } catch {
-      msg.reply("⚠️ Failed to fetch data.")
-    }
-  }
-
-  if (msg.content.startsWith("!player ")) {
-    const userId = msg.content.slice(8).trim()
-    try {
-      const res = await axios.get(`https://www.rolimons.com/playerapi/player/${userId}`)
-      const data = res.data
-      const embed = new EmbedBuilder()
-        .setTitle(`👤 Player: ${data.player_name}`)
-        .addFields(
-          { name: "💎 Value", value: `${data.player_value?.toLocaleString() ?? "N/A"} RAP`, inline: true },
-          { name: "🎒 Items", value: `${data.inventory_count ?? "N/A"}`, inline: true }
-        )
-        .setColor(0xED4245)
-        .setURL(`https://www.rolimons.com/player/${userId}`)
-        .setThumbnail(ROSE_ICON_URL)
-      msg.reply({ embeds: [embed] })
-    } catch {
-      msg.reply("⚠️ Player not found.")
-    }
-  }
-})
 
 client.once("ready", () => {
   console.log(`✅ Bot online as ${client.user.tag}`)
