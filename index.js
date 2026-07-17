@@ -55,7 +55,7 @@ async function getGameInfo(itemId) {
       const productRes = await axios.get(`https://api.roblox.com/marketplace/productinfo?assetId=${itemId}`).catch(() => null)
       if (productRes?.data?.RootPlaceId) {
         return {
-          name: productRes.data.Name || itemData.name || "Game",
+          name: productRes.data.Name || "Game",
           url: `https://www.roblox.com/games/${productRes.data.RootPlaceId}`
         }
       }
@@ -81,38 +81,48 @@ async function checkFreeUGC() {
     const allItems = results.flatMap(r => r?.data?.data ?? [])
     const seen = new Set()
     const unique = allItems.filter(i => !seen.has(i.id) && seen.add(i.id))
+    
     for (const item of unique) {
       const itemId = item.id?.toString()
       if (!itemId || notifiedItems.has(itemId)) continue
+      
       const isFree = item.price === 0 || item.price === null
       const isUGC = item.creatorType === "User" || item.creatorType === "Group"
       if (!isFree || !isUGC) continue
+
       notifiedItems.add(itemId)
       const imageUrl = await getItemImage(itemId)
       const rolimonsUrl = `https://www.rolimons.com/item/${itemId}`
       const itemUrl = `https://www.roblox.com/catalog/${itemId}`
+      
       const creatorValue = item.creatorTargetId
         ? `[${item.creatorName}](${item.creatorType === "Group"
             ? `https://www.roblox.com/groups/${item.creatorTargetId}`
             : `https://www.roblox.com/users/${item.creatorTargetId}/profile`})`
         : (item.creatorName || "Unknown")
+
       const gameInfo = await getGameInfo(itemId)
-      const gameFieldValue = gameInfo
-        ? `[${gameInfo.name}](${gameInfo.url})`
-        : `[Catalog Item](${itemUrl})`
+      
+      const fields = [
+        { name: "💰 Price", value: "FREE", inline: true },
+        { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
+        { name: "👤 Creator", value: creatorValue, inline: true }
+      ]
+
+      if (gameInfo) {
+        fields.push({ name: "Game", value: `[${gameInfo.name}](${gameInfo.url})` })
+      }
+
+      fields.push({ name: "Item", value: `<${rolimonsUrl}>` })
+
       const freeEmbed = {
         title: item.name,
         color: 0xED4245,
-        fields: [
-          { name: "💰 Price", value: "FREE", inline: true },
-          { name: "📦 Stock", value: `${item.unitsAvailableForConsumption ?? "1"}`, inline: true },
-          { name: "👤 Creator", value: creatorValue, inline: true },
-          { name: "Game", value: gameFieldValue },
-          { name: "Item", value: `<${rolimonsUrl}>` }
-        ],
+        fields: fields,
         thumbnail: { url: imageUrl || ROSE_ICON_URL },
         timestamp: new Date().toISOString()
       }
+
       await sendWebhookTo(FREE_WEBHOOK, {
         content: `<@&${FREE_ROLE_ID}>`,
         embeds: [freeEmbed]
