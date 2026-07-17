@@ -42,26 +42,6 @@ http.createServer((req, res) => {
   res.end("OK")
 }).listen(process.env.PORT || 10000)
 
-async function fetchRolimonsData() {
-  try {
-    const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
-    if (res.data?.success && res.data?.items) rolimonsData = res.data.items
-  } catch (e) {
-    console.error("Rolimons error:", e.response?.status, e.message)
-    await sendWebhookTo(FREE_WEBHOOK, {
-      content: `<@&${FREE_ROLE_ID}>`,
-      embeds: [
-        {
-          title: "Rolimons Error",
-          description: `Status: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
-          color: 0xff0000,
-          timestamp: new Date().toISOString()
-        }
-      ]
-    })
-  }
-}
-
 async function sendWebhookTo(url, payload) {
   if (!url) return
   try {
@@ -81,6 +61,26 @@ async function sendWebhookTo(url, payload) {
         ]
       })
     } catch {}
+  }
+}
+
+async function fetchRolimonsData() {
+  try {
+    const res = await axios.get("https://www.rolimons.com/itemapi/itemdetails")
+    if (res.data?.success && res.data?.items) rolimonsData = res.data.items
+  } catch (e) {
+    console.error("Rolimons error:", e.response?.status, e.message)
+    await sendWebhookTo(FREE_WEBHOOK, {
+      content: `<@&${FREE_ROLE_ID}>`,
+      embeds: [
+        {
+          title: "Rolimons Error",
+          description: `Status: ${e.response?.status || "N/A"}\nMessage: ${e.message}`,
+          color: 0xff0000,
+          timestamp: new Date().toISOString()
+        }
+      ]
+    })
   }
 }
 
@@ -223,11 +223,9 @@ async function checkFreeUGC() {
       if (!itemId || notifiedItems.has(itemId)) continue
 
       const isFree = item.price === 0 || item.price === null
-      const isUGC = item.creatorType === "User" || item.creatorType === "Group"
-      const stock = item.unitsAvailableForConsumption
-      const isLimited = stock != null && stock > 0 && stock < 50000
+      const isUGCOrRoblox = item.creatorType === "User" || item.creatorType === "Group"
 
-      if (!isFree || !isUGC || !isLimited) continue
+      if (!isFree || !isUGCOrRoblox) continue
 
       notifiedItems.add(itemId)
       newNotifications++
@@ -250,10 +248,17 @@ async function checkFreeUGC() {
 
       const fields = [
         { name: "💰 Price", value: "FREE", inline: true },
-        { name: "📦 Stock", value: `${stock}`, inline: true },
         { name: "👤 Creator", value: creatorValue, inline: true },
         { name: "📅 Created", value: createdDate, inline: true }
       ]
+
+      if (typeof item.unitsAvailableForConsumption === "number") {
+        fields.push({
+          name: "📦 Stock",
+          value: `${item.unitsAvailableForConsumption}`,
+          inline: true
+        })
+      }
 
       if (rolimonsInfo) {
         fields.push({
@@ -318,7 +323,7 @@ async function checkFreeUGC() {
   }
 }
 
-cron.schedule("*/10 * * * *", fetchRolimonsData)
+cron.schedule("*/30 * * * *", fetchRolimonsData)
 cron.schedule("* * * * *", checkFreeUGC)
 
 client.once(Events.ClientReady, (readyClient) => {
