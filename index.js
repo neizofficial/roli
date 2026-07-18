@@ -40,56 +40,41 @@ function saveNotified() {
 
 async function checkFreeUGC() {
   try {
-    const urls = [
-      "https://catalog.roblox.com/v1/search/items/details?Category=11&Limit=30&MaxPrice=0&SortType=2&salesTypeFilter=1",
-      "https://catalog.roblox.com/v1/search/items/details?Category=3&Limit=30&MaxPrice=0&SortType=2&salesTypeFilter=1",
-      "https://catalog.roblox.com/v2/search/items/details?Category=11&Limit=30&MaxPrice=0&SortType=2",
-      "https://catalog.roblox.com/v2/search/items/details?Category=3&Limit=30&MaxPrice=0&SortType=2"
-    ];
+    const res = await axios.get("https://www.rolimons.com/api/free-limiteds", { timeout: 10000 }).catch(() => null);
+    if (!res?.data) return;
 
-    const results = await Promise.all(urls.map(u => axios.get(u, { timeout: 8000 }).catch(() => null)));
-    const items = results.flatMap(r => r?.data?.data ?? []);
-    const unique = Array.from(new Map(items.map(i => [i.id, i])).values());
+    const items = res.data.freeLimiteds || [];
 
     let addedAny = false;
 
-    for (const item of unique) {
-      const id = item.id.toString();
+    for (const item of items) {
+      const id = item.assetId.toString();
       if (notifiedItems.has(id)) continue;
 
-      const isFree = item.price === 0 || item.price === null || item.lowestPrice === 0;
-      const isLimited = item.collectibleItemId || 
-                       (item.unitsAvailableForConsumption !== undefined && item.unitsAvailableForConsumption > 0) ||
-                       item.saleLocationType === "Limited" ||
-                       item.itemRestrictions?.includes("Limited");
+      notifiedItems.add(id);
+      addedAny = true;
 
-      if (isFree && isLimited) {
-        notifiedItems.add(id);
-        addedAny = true;
+      if (!initialized) continue;
 
-        if (!initialized) continue;
+      const img = `https://thumbnails.roblox.com/v1/assets?assetIds=${id}&size=420x420&format=Png`;
 
-        const thumbRes = await axios.get(`https://thumbnails.roblox.com/v1/assets?assetIds=${id}&size=420x420&format=Png`).catch(() => null);
-        const img = thumbRes?.data?.data?.[0]?.imageUrl || "";
+      await axios.post(FREE_WEBHOOK, {
+        content: `<@&${FREE_ROLE_ID}> **NEW FREE LIMITED UGC DETECTED!**`,
+        embeds: [{
+          title: item.name,
+          url: `https://www.roblox.com/catalog/${id}`,
+          color: 0x00ff00,
+          fields: [
+            { name: "Stock", value: item.remainingStock || "Limited", inline: true },
+            { name: "From", value: "Rolimons", inline: true }
+          ],
+          image: { url: img },
+          footer: { text: `ID: ${id}` },
+          timestamp: new Date().toISOString()
+        }]
+      }).catch(() => {});
 
-        await axios.post(FREE_WEBHOOK, {
-          content: `<@&${FREE_ROLE_ID}> **NEW FREE LIMITED UGC DETECTED!**`,
-          embeds: [{
-            title: item.name,
-            url: `https://www.roblox.com/catalog/${id}`,
-            color: 0x00ff00,
-            fields: [
-              { name: "Stock", value: `${item.unitsAvailableForConsumption || "Limited"}`, inline: true },
-              { name: "Creator", value: `[${item.creatorName}](https://www.roblox.com/users/${item.creatorTargetId}/profile)`, inline: true }
-            ],
-            image: { url: img },
-            footer: { text: `ID: ${id}` },
-            timestamp: new Date().toISOString()
-          }]
-        }).catch(() => {});
-
-        await new Promise(r => setTimeout(r, 1500));
-      }
+      await new Promise(r => setTimeout(r, 1500));
     }
 
     if (addedAny) saveNotified();
