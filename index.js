@@ -101,6 +101,9 @@ cron.schedule("* * * * *", checkFreeUGC);
 
 client.once(Events.ClientReady, async () => {
   loadNotified();
+  await axios.post(FREE_WEBHOOK, {
+    content: `<@&${FREE_ROLE_ID}> **Free UGC Bot Started Successfully**`
+  }).catch(() => {});
   await checkFreeUGC();
 });
 
